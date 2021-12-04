@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "377578932316",
+    "project_id": "research-project-e9b24",
+    "storage_bucket": "research-project-e9b24.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:377578932316:android:85acb3f79f1d028745fe99",
+        "android_client_info": {
+          "package_name": "com.group22.dataloggerapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "377578932316-6a6tqtua4pqbbha3sbtq670l0t0vmii9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.group22.dataloggerapp",
+            "certificate_hash": "69f77bd9e00dfb0c70f252ced2f0b2ad66da35dd"
+          }
+        },
+        {
+          "client_id": "377578932316-n14f73g74ppukna8abj5hhdnvtf1fql1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXp2ZXRJ0aIKfPbPtzMbVAA59c27ccByM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "377578932316-n14f73g74ppukna8abj5hhdnvtf1fql1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
