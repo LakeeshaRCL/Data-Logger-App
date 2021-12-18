@@ -21,6 +21,7 @@ class FileService {
 
   // method to write content to the file
   Future<File> writeContent(String content)async{
+    print("File empty satatus : $isFileEmpty");
     if(isFileEmpty){
       return file.writeAsString(content);
     }

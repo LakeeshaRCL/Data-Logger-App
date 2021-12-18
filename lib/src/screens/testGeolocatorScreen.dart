@@ -1,4 +1,4 @@
-// ignore_for_file: file_names, prefer_const_literals_to_create_immutables
+// ignore_for_file: file_names, prefer_const_literals_to_create_immutables, unnecessary_null_comparison
 import 'dart:convert';
 
 import 'package:data_logger_app/src/models/FileRecord.dart';
@@ -11,6 +11,7 @@ import 'package:data_logger_app/src/services/fileService.dart';
 import 'package:google_sign_in/google_sign_in.dart' as signIn;
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:data_logger_app/src/services/googleAuthClientService.dart';
+import 'package:logger/logger.dart';
 
 class TestGeolocatorScreen extends StatefulWidget {
   const TestGeolocatorScreen({ Key? key }) : super(key: key);
@@ -34,14 +35,22 @@ class _TestGeolocatorScreenState extends State<TestGeolocatorScreen> {
                 scopes: [drive.DriveApi.driveScope]
               );
 
-  FileService fileService = FileService(fileName: "Test.json");
+
+  FileService fileService = FileService(fileName:"Logged_data_${getDateFromTimeStamp(DateTime.now().toString())}.json");
+
+  Logger logger = Logger();
 
   // Tempory button controls------------
   bool isFileCreated = false;
-  bool isUploadToDrive = false;
-  bool isFileCleaned = false;
-
   
+  late bool isLogging; // a property to control the datalogging period
+
+  @override
+  void initState() {
+    super.initState();
+    isLogging = true;
+    logger.d("InitState() called - isLogging : $isLogging");
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,123 +58,174 @@ class _TestGeolocatorScreenState extends State<TestGeolocatorScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Test Geolocation Module"),
+        title: Text("Data Logger"),
+        centerTitle: true,
       ),
        body: Column(
+         mainAxisAlignment: MainAxisAlignment.center,
          children: <Widget> [
+          Center(
+            child: ElevatedButton(
+              onPressed: ()async{
 
-          const SizedBox(height: 50,),
-          Center(child: Text("Lat : $lat - Long : $long"),),
-          const SizedBox(height: 50,),
-          Center(child: Text(" Timestamp : $timeStamp"),),
-          const SizedBox(height: 50,),
-          ElevatedButton(
-            onPressed: !isUploadToDrive ? ()async{
+                await publicHolidayService.getPublicHolidayData(); // initially at the test stage. this should run only once in the day
 
-              Position currentPosition = await geolocatorService.getCurrentPosition();
+                await fileService.setLocalFile();
 
-              await publicHolidayService.getPublicHolidayData(); // initially at the test stage. this should run only once in the day
+                fileService.clearFile(); // add because of while loop continuously appending the data. Before start the logging clear the file.
 
-              await fileService.setLocalFile();
-              await fileService.checkFileEmpty();
+                late FileRecord record ; // to store the current record
 
-              FileRecord record ;
-
-              setState((){
-                isFileCreated = true;
-
-                lat = currentPosition.latitude.toString();
-                long = currentPosition.longitude.toString();
+                int recordDuration = 10; // Stores the record duration in seconds. 
                 
-    
-                TimeService timeService = TimeService();
-                timeStamp = timeService.getTimeStamp();
-                currentDate = timeService.getCurrentDate();
+                while(isLogging){
+        
+                  await fileService.checkFileEmpty();  
+                  Position currentPosition = await geolocatorService.getCurrentPosition(); 
+                  logData(currentPosition);
 
-                bool isHoilday = publicHolidayService.checkIsHoliday(timeService.getCurrentDate());
-                bool isRushHour = timeService.checkIsRushHour();
-                bool isWeekend  = timeService.checkIsWeekend();
+                  String nextRecord = getDateTimeUpToSeconds(DateTime.now().add( Duration(seconds: recordDuration)).toString());
+                  logger.w("Next : $nextRecord");
 
-                record= FileRecord(
-                  longitude: long, 
-                  latitude: lat, 
-                  timeStamp: timeStamp,
-                  isRushHour: isRushHour, 
-                  isWeekend: isWeekend,
-                  isPublicHoliday: isHoilday
-                );
-
-                print(record.toJson());
-
+                  await Future.delayed(Duration(seconds: recordDuration));
+ 
+                }
                 
-                fileService.writeContent(jsonEncode(record.toJson()));
-              });
-              print("Test file read start---------------->\n");
-              print(await fileService.readFile());
-              
-            } : null, 
-            child:const Text("Get Current Location")
-            ),
-            const SizedBox(height: 50,),
-            ElevatedButton(
-              onPressed: isFileCreated ? ()async{
-                setState((){
-                  isUploadToDrive = true;
-                  isFileCreated = false;
-                });
-
-                final account = await googleSignIn.signIn();
-                print("Sign in to account : $account");
-
-                // initialize driveApi
-                final authHeaders = await account!.authHeaders;
-                final authenticateClient = GoogleAuthClientService(authHeaders);
-                final driveApi = drive.DriveApi(authenticateClient);
-
-
-                await fileService.fileFormatToJSON();
-                print("File read start after format to JSON ---------------->\n");
-                print(await fileService.readFile());
-
-                drive.File file = drive.File();
-                
-                try {
-                  file.name = "DataLoggerRecords_$timeStamp.json";
-                  drive.File response = await driveApi.files.create(file,uploadMedia: drive.Media(
-                    fileService.getFile().openRead(),
-                    fileService.getFile().lengthSync(),
-                  ));
-
-                  print("Succuessfully uploaded the file with the size : ${response.size}");
-                }
-                catch(e){
-                  print("Dirve file upload exeption occurs : $e");
-                }
-                finally{
-                  authenticateClient.close();
-                }
-
-              }: null, 
-              child:const Text("Upload file to Drive")
+                logger.w("Data Logging ends - isLogging : $isLogging");
+                await readFile();
+                await uploadToDrive();
+              },
+              style: ElevatedButton.styleFrom(
+                fixedSize: const Size(250, 150),
+                primary: Colors.green
               ),
-              const SizedBox(height: 50),
-              ElevatedButton(
-                onPressed: isUploadToDrive ? ()async{
-                  
-                  // This part was added temporary
-                  fileService.clearFile();
-                  print("File after clean :");
-                  print(await fileService.readFile());
 
-                  setState((){
-                    isUploadToDrive = false;
-                  });
-                  
-                }:null,     
-                child:const Text("Clear File")
-                )
+              child:const Text(
+                "Start",
+                style: TextStyle(fontSize:30),
+              )
+            ),
+          ),
+          const SizedBox(height:200,),
+          ElevatedButton(
+            onPressed: (){
+              setState(() {
+                isLogging = false;
+                logger.w("Stop button was tapped");
+              });
+            }, 
+            child: const Text(
+              "Stop",
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 25,
+              ),),
+            style: ElevatedButton.styleFrom(
+              primary: Colors.amber,
+              fixedSize: const Size(250, 50)
+            ),
+          ),
          ],
        ),
     );
   }
+
+
+  /*
+   * ==============================================================
+   * A method to execute data logging task
+   */
+  void logData(Position currentPosition) {
+
+    lat = currentPosition.latitude.toString();
+    long = currentPosition.longitude.toString();
+    
+
+    TimeService timeService = TimeService();
+    timeStamp = timeService.getTimeStamp();
+    currentDate = timeService.getCurrentDate();
+
+    bool isHoilday = publicHolidayService.checkIsHoliday(timeService.getCurrentDate());
+    bool isRushHour = timeService.checkIsRushHour();
+    bool isWeekend  = timeService.checkIsWeekend();
+
+    FileRecord record= FileRecord(
+      longitude: long, 
+      latitude: lat, 
+      timeStamp: timeStamp,
+      isRushHour: isRushHour, 
+      isWeekend: isWeekend,
+      isPublicHoliday: isHoilday
+    );
+
+    logger.i(record.toJson());
+    fileService.writeContent(jsonEncode(record.toJson()));
+  }
+
+
+
+  /*
+   * ================================================================
+   * Method to upload logged data into goolge drive 
+   */
+  Future<void> uploadToDrive()async{
+
+    final account = await googleSignIn.signIn();
+    print("Sign in to account : $account");
+
+    // initialize driveApi
+    final authHeaders = await account!.authHeaders;
+    final authenticateClient = GoogleAuthClientService(authHeaders);
+    final driveApi = drive.DriveApi(authenticateClient);
+
+
+    await fileService.fileFormatToJSON();
+    print("File read start after format to JSON ---------------->\n");
+    print(await fileService.readFile());
+
+    drive.File file = drive.File();
+    
+    try {
+      file.name = "DataLoggerRecord_$timeStamp.json";
+      drive.File response = await driveApi.files.create(file,uploadMedia: drive.Media(
+        fileService.getFile().openRead(),
+        fileService.getFile().lengthSync(),
+      ));
+
+      logger.i("Succuessfully uploaded the file with the size : ${response.size}");
+    }
+    catch(e){
+      logger.w("Dirve file upload exeption occurs : $e");
+    }
+    finally{
+      authenticateClient.close();
+    }
+  }
+
+
+/*
+  * ==============================================================
+  * Methods to format given timestamp string
+  */
+
+  static String getDateTimeUpToSeconds(String timeStamp){
+    String formated = timeStamp.substring(0,19) ;
+    return formated;
+  }
+
+  static String getDateFromTimeStamp(String timeStamp){
+    String formated = timeStamp.substring(0,10) ;
+    return formated;
+  }
+
+
+/*
+  * ==============================================================
+  * A Method tto read the file
+  */
+  Future<void> readFile() async {
+    logger.w("Test file read start====================================\n");
+    print(await fileService.readFile());
+  }
+
 }

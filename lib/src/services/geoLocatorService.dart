@@ -1,6 +1,8 @@
 
 // ignore_for_file: file_names, slash_for_doc_comments
 
+import 'dart:async';
+
 import 'package:geolocator/geolocator.dart';
 
 class GeolocatorService {
@@ -13,6 +15,7 @@ class GeolocatorService {
 
     bool isServiceEnabled; // to store geo service status of the device
     LocationPermission permission; // store location permission on deveice
+    
 
     // Check locaion service is enabled
     isServiceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -41,5 +44,18 @@ class GeolocatorService {
 
     // if all satisfied, get current geo location
     return await Geolocator.getCurrentPosition();
+  }
+
+  /*
+   * ================================================================================================
+   *  Location Stream
+   */
+  void getEnableLocationStream(){
+
+    
+    StreamSubscription<Position> positionStream = Geolocator.getPositionStream().listen(
+        (Position position) {
+            print(position == null ? 'Unknown' : position.latitude.toString() + ', ' + position.longitude.toString());
+    });
   }
 }

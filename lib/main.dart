@@ -15,6 +15,7 @@ class MyApp extends StatelessWidget {
       title: 'Data Logger App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        brightness: Brightness.dark
       ),
       home: const TestGeolocatorScreen()
     );
