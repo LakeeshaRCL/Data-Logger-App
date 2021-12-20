@@ -1,8 +1,8 @@
 // ignore_for_file: file_names, prefer_const_literals_to_create_immutables, unnecessary_null_comparison
 import 'dart:convert';
-
 import 'package:data_logger_app/src/models/FileRecord.dart';
 import 'package:data_logger_app/src/services/GeoLocatorService.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:data_logger_app/src/services/publicHolidayService.dart';
@@ -28,6 +28,8 @@ class _TestGeolocatorScreenState extends State<TestGeolocatorScreen> {
   String timeStamp = "";
   String currentDate = "";
 
+  late var account; // A property to store current sign in google account
+
   GeolocatorService geolocatorService = GeolocatorService();
   PublicHolidayService  publicHolidayService = PublicHolidayService(api_key: "04195d83220a781fec0ef7811aab0c1c3182b435",country: "LK",year: "2021");
 
@@ -40,43 +42,70 @@ class _TestGeolocatorScreenState extends State<TestGeolocatorScreen> {
 
   Logger logger = Logger();
 
-  // Tempory button controls------------
-  bool isFileCreated = false;
-  
+// Button controllers======================================================================================
+  bool startBtnTapped = false; // property check is start button was tapped
+  bool stopBtnTapped = false;
+  bool isUserAccountAvailable = false; // property to check is sign in user account available currently
+
   late bool isLogging; // a property to control the datalogging period
+
 
   @override
   void initState() {
     super.initState();
     isLogging = true;
     logger.d("InitState() called - isLogging : $isLogging");
+
+    // This fucntionality needed to be verified in a actual app
+    // Used to check is logged user is available
+    googleSignIn.onCurrentUserChanged.listen((signIn.GoogleSignInAccount? currentAccount ) {
+      setState(() {
+        account = currentAccount;
+        logger.i("initState account : ${account.toString()}");
+        if(account != null){
+          isUserAccountAvailable = true;
+        }
+        
+      });
+    });
+     googleSignIn.signInSilently();
   }
 
   @override
   Widget build(BuildContext context) {
-     //Position position = await geoService.getCurrentPosition();
 
+     //Position position = await geoService.getCurrentPosition();
+    
     return Scaffold(
       appBar: AppBar(
-        title: Text("Data Logger"),
+        title: const Text("Data Logger"),
         centerTitle: true,
+        actions: <Widget>[
+          IconButton(
+            onPressed: !isUserAccountAvailable ? ()async{
+              account = await googleSignIn.signIn();
+              logger.i("Sign in to account : $account");
+            } : null, 
+            icon: Icon(Icons.cloud))
+        ],
       ),
        body: Column(
          mainAxisAlignment: MainAxisAlignment.center,
          children: <Widget> [
           Center(
-            child: ElevatedButton(
-              onPressed: ()async{
+            child: ElevatedButton( // Start button
+              onPressed: !startBtnTapped ? ()async{
+                setState(() {
+                  startBtnTapped = true;
+                });
 
                 await publicHolidayService.getPublicHolidayData(); // initially at the test stage. this should run only once in the day
 
-                await fileService.setLocalFile();
+                await fileService.setLocalFile(); // set local file
 
                 fileService.clearFile(); // add because of while loop continuously appending the data. Before start the logging clear the file.
 
-                late FileRecord record ; // to store the current record
-
-                int recordDuration = 10; // Stores the record duration in seconds. 
+                int recordDuration = 6; // Stores the record duration in seconds.  (this should -4 from actual delay due to other delays)
                 
                 while(isLogging){
         
@@ -93,8 +122,16 @@ class _TestGeolocatorScreenState extends State<TestGeolocatorScreen> {
                 
                 logger.w("Data Logging ends - isLogging : $isLogging");
                 await readFile();
-                await uploadToDrive();
-              },
+                await uploadToDrive(account);
+
+                setState(() {
+                  isLogging = true;
+                });
+
+                logger.i("Data logging back to start state - isLogging : $isLogging");
+
+              } : null,
+
               style: ElevatedButton.styleFrom(
                 fixedSize: const Size(250, 150),
                 primary: Colors.green
@@ -107,13 +144,15 @@ class _TestGeolocatorScreenState extends State<TestGeolocatorScreen> {
             ),
           ),
           const SizedBox(height:200,),
-          ElevatedButton(
-            onPressed: (){
+          ElevatedButton( // Stop button
+            onPressed: startBtnTapped ? (){
               setState(() {
                 isLogging = false;
                 logger.w("Stop button was tapped");
+                startBtnTapped = false;
               });
-            }, 
+            } : null, 
+
             child: const Text(
               "Stop",
               style: TextStyle(
@@ -168,10 +207,10 @@ class _TestGeolocatorScreenState extends State<TestGeolocatorScreen> {
    * ================================================================
    * Method to upload logged data into goolge drive 
    */
-  Future<void> uploadToDrive()async{
+  Future<void> uploadToDrive(var account)async{
 
-    final account = await googleSignIn.signIn();
-    print("Sign in to account : $account");
+    // final account = await googleSignIn.signIn();
+    print("Current Google Account : $account");
 
     // initialize driveApi
     final authHeaders = await account!.authHeaders;

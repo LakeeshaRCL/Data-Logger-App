@@ -34,7 +34,10 @@ class PublicHolidayService{
   
   }
 
-
+/*
+ *  =================================================================================
+ *  A method to check is given date is a holiday
+ */
   bool checkIsHoliday(String date){
     bool isHoliday = false;
 

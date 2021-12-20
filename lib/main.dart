@@ -11,13 +11,14 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+
     return MaterialApp(
       title: 'Data Logger App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         brightness: Brightness.dark
       ),
-      home: const TestGeolocatorScreen()
+      home: const TestGeolocatorScreen(),
     );
   }
 }
